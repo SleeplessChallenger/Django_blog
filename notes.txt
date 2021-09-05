@@ -1,0 +1,226 @@
+1. create template -> blog folders inside blog
+
+2. add paths to `urls.py` in django-site
+
+3. add paths to `urls.py` in blog
+
+4. add applications after one is created to `settings.py`
+-> INSTALLED_APPS
+
+5. keys of dict are accessible from template (here key is 'posts')
+
+	context = {
+		'posts': posts
+	}
+
+6. {% load static %} in main html file
+
+7. not to hardcode paths in html, we'll use: href="{% url 'blog-home' %}"
+So, we specify `url` file and `name=` in that file to redirect. And EVEN IF
+we change the route itself (i.e. from /blog to /new_blog) it'll still work
+
+8. to be able to use `/admin` we need to have db to create such a user.
+`python manage.py migrate`
+`python manage.py createsuperuser`
+
+9. in `models.py`, when using datetime:
+ - auto_now=True: every time post is updated -> field will change. Very good for last updated, but not for created_at
+ - auto_now_add=True: will keep date when post was created, but it's impossible for us to change it in the future.
+ - default=timezone.now: enables us to change it further while not altering the data if we tweak something
+
+10. in ForeignKey if we want this object to be deleted if 
+main object is deleted: `on_delete=models.CASCADE`
+i.e. User - Post. User is main & Post is ForeignKey.
+
+
+11. to be able to update db after making changes to db:
+`python manage.py makemigrations`
+
+And after that if we want those changes to take place in our db:
+`python manage.py migrate`
+
+12. to be able to see raw SQL code in CLI we need our app name and
+db code number:
+`python manage.py sqlmigrate blog 0001`
+
+13. if you want to interact with models in CLI:
+`python manage.py shell`
+
+User.objects.all()
+User.objects.first()
+User.objects.filter(username='SleeplessChallenger')
+User.objects.filter(username='SleeplessChallenger').first()
+User.objects.get(id=1)
+
+post_1 = Post(title='Blog 1', content = 'First Post content', author=user)
+post_1.save()
+# `save()` is crucial otherwise db won't take in changes
+Post.objects.all()
+
++ Also we can write instead of `author_id=user.id`
++ we can access `user` object through post: `post_2.user.email`
+
+14. how to access all posts of the user without filtering Post model? (although it's also a good idea)
+use `.modelname_set`: `user.post_set.all()`
+
++ we can create new Post object thtough user where we don't need to specify author and we don't need to save():
+
+`user.post_set.create(title='Another method post', content='Here we will jot some text')`
+
+15. if we want to track changes in admin page for Post model, we 
+need to register it in `blog.admin.py`
+
+16. in `admin.py` we need to register our models (USer is a default one
+hence only Post on our case)
+
+
+# New app
+
+17. `python manage.py startapp users`
+will create a whole new app with its own views etc
+
+than don't forget to add it to `settings.py` -> installed apps. And to check what to write -> go to the apps.py of the pertinent app (like blog, user etc)
+
+18. when creating templates folder for Django convention you need
+to create subfolder with parent folder name (like blog or users) and only there create files
+
+19. when creating forms don't forget to add {% csrf_token %} otherwise form won't work
+
+20. after creating form in users.views, we need to "register" it inside
+overall project url. We can do it with include or we can import our views and do it like `admin/` one
+
+21. `{{ form.as_p }}` will make form look better
+
+22. use `redirect('blog-home')` to send user to another page after the
+request even if we're in another app (i.e. users)
+
+23.     
+messages.success(request, f"Account was created: {username}")
+
+          {% if messages %}
+            {% for msg in messages %}
+              <div class='alert alert-{{ msg.tags }}'>
+                  {{ msg }}
+              </div>
+            {% endfor %}
+          {% endif %}
+
+ A) Django and Bootstrap have the same classes in flash
+ hence we can `alert-{{ message.tags }}` and it'll display 
+ success/alert etc.
+
+ B) after writing flash() in views, we also need to add it to our base template to make them actually appear on our page
+
+24. if you want crispy forms, add them to settings.py:
+`crispy_forms` + put at the bottom: `CRISPY_TEMPLATE_PACK = 'bootstrap4'`
+
+!! remove .as_p from forms if you add crispy forms
+
+25. to enable Login/Logout we need at first to import them and put
+in `urls.py` in the django_site. Also, they're alreay installed in settings.py (auth something)
+
++ to specify template location instead of default: `template_name=__`
+
+
+26. after we login, by default django will redirect us to another page: `accounts/profile/`, but if we want to overwrite it: go to `settings.py` -> at the bottom -> LOGIN_REDIRECT_URL = 'blog-home' (we can place it at desired url)
+
+Same with logout. Otherwise logout will do move for admin page
+
+27. to restrict some url to only be accessible by logged in users:
+	a) put @login_required above view
+	b) if Django shows another url than the one you created:
+	`accounts/login/?next=/profile/` for login while put `login`
+	-> go to settings.py -> LOGIN_URL = 'login'
+
+After changes are implemented
+!!!++ if you click on profile not being logged in, it'll redirect
+you to the login page. In URL you can find `login/?next=/profile/`
+which means it does keep track of pages and after log in process it will redirect you to the page you initially desired to visit.
+
+
+28. making 'Profile' model means creating One to One relationship
+with User model. (it's done inside `users` folder)
+
+!! we need to register newly created model (`Profile`) in admin.py to be able to see it in admin page.
+
+As this model has one-to-one relationship with User, we can query
+in shell User.objects and then just type: `user.profile`
+
+29. to prevent our root directory from cluttering, we need
+to change a couple of settings:
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# means new folder is created inside our project root
+# and it's a place where files will be on our file system
+MEDIA_URL = '/media/'
+# means public url which will be accessed by browser
+
++ our `upload_to` will be created inside MEDIA_ROOT
++ in regard to MEDIA_URL: we'll access it via /media/profile_pics/<image_data>
+
+30. to create some chain of events: like when user is created then Profile is created automatically, we need to use signals
+
+In signals there is Sender and Receiver + we need to create signals file which will encapsulate the logic.
+
+All the arguments inside `create_profile` are sent to it by `post_save` which triggers @receiver() and it in turn triggers 
+`create_profile`. Where instance is a sender (aka User)
+
+!! don't forget to add inside `apps.py` ready() function
+
+31. don't forget to add `enctype="multipart/form-data">`,
+otherwise image won't be saved while you're changing it
+
+
+32. to populate forms with data we write: `instance=` and give it
+desired one from `request`. If request is POST, then we want to fill it with data from the forms.
+
+
+33. In django there're class-based views which encapsulate some of the logic.
+
+- we need to specify `model` variable as it'll show our view what to query.
+
+- also we need to substitute in `url.py`: `path('', views.home, name='blog-home'),` for `path('', PostsViews.as_view(), name='blog-home'),`
+
+- convention for seeing those class-based views are: <app>/<model_viewtype>.html + we need to specify template name & variable which it'll be looping over (we specified `posts` in our template, but class-based views have anohter one. So, for us not to change name in the template we can specify desired variable name)
+
+
+34. href="{% url 'post-detail' post.id %}" 
+we do it on home.html as we want to make thse links alive. Specifying that ``.id` is crucial as otherwise we'll have error
+
+35. when dealing with class-based views, we need to create .html templates of particaulr name (or override). But how do we know which name to use? -> after creating URL we can simply type that url and Django will tell us desired template name
+
+36. for post to work we're to specify the author. We do this by adding form_valid() function inside `views.py`
+
+37. to tell Django how to find URL of a model object is to create a `get_absolute_url()` with reverse function.
+
+redirect() vs reverse(): former just redirects you to some route whilst latter returns full url to curr route
+
+38. in function-based views we use @login_required to prevent
+unregistered users to visit our page whilst in classes we us Mixin for the same purpose
+
+39. Also, not only to prevent other users to create/update posts not being logged in, we must to prevent them from updating posts of another users
+
+40. when deleting a post we need to specify `success_url` for route to know where to redirect
+
+41. we can look at Paginator object within our django shell:
+`from django.core.paginator import Paginator`
+
+42. How to create reset password feature?
+ - in `urls.py` of 'django-project' we put `PasswordResetView`
+ - create template which will display info for reseting passsword
+ - template that will show: "Email has been sent"
+
+ + password_reset_confirm is required as it is the layer which
+ will accept users when they click on the link from email
+ + password_reset_complete is the one which will follow after user changed their password
+
+
+
+
+Command:
+
+python manage.py runserver
+
+django-admin startproject ____
+
+python manage.py startapp ____
